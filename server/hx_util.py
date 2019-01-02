@@ -1,18 +1,17 @@
-#!/usr/bin/env python
 # encoding=utf8
 
 import json
 import requests
 import sqlite3
 
-db_path = "./db/hx.db"
+db_path = "hx.s3db"
 config_table = "hx_config"
 block_table = "hx_block"
 user_table = "hx_user"
 asset_table = "hx_asset"
 
 def http_request(method, args):
-    url = "http://127.0.0.1:8099"
+    url = "http://132.232.21.36:8099"
     args_j = json.dumps(args)
     payload =  "{\r\n \"id\": 1,\r\n \"method\": \"%s\",\r\n \"params\": %s\r\n}" % (method, args_j)
     headers = {
@@ -28,6 +27,11 @@ def http_request(method, args):
             return rep["result"]
     except Exception:
         return None
+
+
+def get_info_result():
+    info = http_request('info', [])
+    return info
 
 
 def get_asset_info():
@@ -171,7 +175,7 @@ def get_citizen_lock_info():
 
 
 def scan_block(count=1):
-    conn = sqlite3.connect('hx.db')
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
     c.execute('select value from '+config_table+' where key=\'scan_block_count\'')
     values = c.fetchall()
@@ -187,15 +191,13 @@ def scan_block(count=1):
             print("Block height: %d, miner: %s, tx_count: %d" % (block['number'], block['miner'], len(block['transactions'])))
             conn.commit()
             f.flush()
-        c.execute("INSERT INTO hx_block VALUES ("+str(block['number'])+",'"+block['miner']+"',"+str(len(block['transactions']))+")")
+        c.execute("INSERT INTO "+block_table+" VALUES ("+str(block['number'])+",'"+block['miner']+"',"+str(len(block['transactions']))+")")
         if len(block['transactions']) > 0:
             tx_count = 0
             for t in block['transactions']:
                 f.write(str(t['operations'])+","+str(block['number'])+","+block['transaction_ids'][tx_count])
                 f.write('\n')
             count += 1
-            #if count > 10:
-                #break
     f.close()
     c.execute('update '+config_table+' set value=\''+str(i)+'\' where key=\'scan_block_count\'')
     c.close()
@@ -218,6 +220,6 @@ def check_lockinfo(citizen):
             print(user['name']+": "+hx_amount+", "+hc_amount)
 
 if __name__ == '__main__':
-    #scan_block(1)
+    scan_block(1)
     #get_richlist()
-    check_lockinfo("1.2.738")
+    # check_lockinfo("1.2.738")

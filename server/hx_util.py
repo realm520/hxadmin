@@ -33,26 +33,20 @@ def http_request(method, args):
 def get_asset_info():
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute('select value from '+config_table+' where key=\'asset_count\'')
-    values = cursor.fetchall()
-    if len(values) > 0:
-        i = int(values[0][0])
-    else:
-        i = 0
-    print("asset count: " + str(i))
+    i = 0
     while True:
         asset = http_request('get_asset_imp', ['1.3.'+str(i)])
         if asset is None:
             break
+        print(asset['symbol'])
         base_price = float(asset['current_feed']['settlement_price']['base']['amount'])
         quote_price = float(asset['current_feed']['settlement_price']['quote']['amount'])
         if base_price == 0.0 or quote_price == 0.0:
             settlement_price = 0
         else:
             settlement_price = quote_price / base_price * 1000.0
-        cursor.execute('insert into '+asset_table+' values (\''+asset['symbol']+'\',\''+asset['id']+'\',\''+str(asset['dynamic_data']['current_supply'])+'\',\''+str(asset['dynamic_data']['withdraw_limition'])+'\',\''+str(settlement_price)+'\')')
+        cursor.execute('replace into '+asset_table+' values (\''+asset['symbol']+'\',\''+asset['id']+'\',\''+str(asset['dynamic_data']['current_supply'])+'\',\''+str(asset['dynamic_data']['withdraw_limition'])+'\',\''+str(settlement_price)+'\')')
         i += 1
-    cursor.execute('update '+config_table+' set value=\''+str(i)+'\' where key=\'asset_count\'')
     cursor.close()
     conn.commit()
     conn.close()
@@ -111,18 +105,18 @@ def get_account_balances():
     print("HC richer:")
     for i in hc_richer:
         if i[1] > 0:
-            print(i)
+            print("User: %s,\tHC: %d" % (i[0], i[1]/100000000))
     print("HX richer:")
     for i in hx_richer:
         if i[1] > 0:
-            print(i)
+            print("User: %s,\tHX: %d" % (i[0], i[1]/100000))
     print("LTC richer:")
     for i in ltc_richer:
         if i[1] > 0:
             print(i)
 
 
-def get_richlist():
+def get_citizen_lock_info():
     citizens = http_request('list_citizens', [0, 1000])
     asset_hc = {}
     asset_hx = {}
@@ -169,18 +163,22 @@ def get_richlist():
     print("LTC richer:")
     for i in ltc_richer:
         if i[1] > 0:
-            print(i)
+            print("User: %s,\tLTC: %d" % (i[0], i[1]/100000000))
     print("BTC richer:")
     for i in btc_richer:
         if i[1] > 0:
-            print(i)
+            print("User: %s,\tBTC: %d" % (i[0], i[1]/100000000))
 
 
 def scan_block(count=1):
     conn = sqlite3.connect('hx.db')
     c = conn.cursor()
+    c.execute('select value from '+config_table+' where key=\'scan_block_count\'')
+    values = c.fetchall()
+    i = int(values[0][0])
+    print("scan block count: " + str(i))
     f = open('hx_txs.txt', 'w+')
-    for i in range(1, 420332):
+    for i in range(i, 420332):
         block = http_request('get_block', [i])
         if block is None:
             print("block %d is not fetched" % i)
@@ -198,8 +196,9 @@ def scan_block(count=1):
             count += 1
             #if count > 10:
                 #break
-
     f.close()
+    c.execute('update '+config_table+' set value=\''+str(i)+'\' where key=\'scan_block_count\'')
+    c.close()
     conn.commit()
     conn.close()
 

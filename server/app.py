@@ -6,17 +6,15 @@ from hx_util import get_account_balances, get_account_info, get_asset_info
 
 
 
-def job_1(a, b):
-    print("job1"+str(a+b))
-    get_account_info()
+def job_1():
     get_asset_info()
+    get_account_info()
 
 class Config(object):
     JOBS = [
         {
             'id': 'job2',
             'func': job_1,
-            'args': (3, 4),
             'trigger': 'interval',
             'seconds': 5,
         }

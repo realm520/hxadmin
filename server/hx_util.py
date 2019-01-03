@@ -179,12 +179,17 @@ def get_richlist():
         if i[1] > 0:
             print(i)
 
-
-def scan_block(count=1):
+    
+def scan_block(count=1, max=0):
+    if max > 0:
+        maxBlockNum = max
+    else:
+        info = get_info_result()
+        maxBlockNum = int(info['head_block_num'])
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    f = open('hx_txs.txt', 'w+')
-    for i in range(1, 200000):
+    # f = open('hx_txs.txt', 'w+')
+    for i in range(count, maxBlockNum):
         block = http_request('get_block', [i])
         if block is None:
             print("block %d is not fetched" % i)
@@ -192,16 +197,24 @@ def scan_block(count=1):
         if i % 1000 == 0:
             print("Block height: %d, miner: %s, tx_count: %d" % (block['number'], block['miner'], len(block['transactions'])))
             conn.commit()
-            f.flush()
+            # f.flush()
         c.execute("INSERT INTO "+block_table+" VALUES ("+str(block['number'])+",'"+block['miner']+"',"+str(len(block['transactions']))+")")
         if len(block['transactions']) > 0:
             tx_count = 0
             for t in block['transactions']:
-                f.write(str(t['operations'])+","+str(block['number'])+","+block['transaction_ids'][tx_count])
-                f.write('\n')
+                for op in t['operations']:
+                    if op[0] == 60:
+                        print(str(i)+',deposit,'+op[1]['cross_chain_trx']['asset_symbol']+','+str(op[1]['cross_chain_trx']['amount']))
+                    elif op[0] == 61:
+                        print(str(i)+',withdraw,'+op[1]['asset_symbol']+','+str(op[1]['amount']))
+                    else:
+                        # print('Not processed: '+str(op[0]))
+                        pass
+                # f.write(str(t['operations'])+","+str(block['number'])+","+block['transaction_ids'][tx_count])
+                # f.write('\n')
             count += 1
 
-    f.close()
+    # f.close()
     conn.commit()
     conn.close()
 
@@ -221,6 +234,6 @@ def check_lockinfo(citizen):
             print(user['name']+": "+hx_amount+", "+hc_amount)
 
 if __name__ == '__main__':
-    scan_block(1)
+    scan_block(1785)
     #get_richlist()
     # check_lockinfo("1.2.738")

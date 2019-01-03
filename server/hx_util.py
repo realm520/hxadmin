@@ -173,16 +173,17 @@ def get_citizen_lock_info():
         if i[1] > 0:
             print("User: %s,\tBTC: %d" % (i[0], i[1]/100000000))
 
-
-def scan_block(count=1):
+    
+def scan_block(count=1, max=0):
+    if max > 0:
+        maxBlockNum = max
+    else:
+        info = get_info_result()
+        maxBlockNum = int(info['head_block_num'])
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    c.execute('select value from '+config_table+' where key=\'scan_block_count\'')
-    values = c.fetchall()
-    i = int(values[0][0])
-    print("scan block count: " + str(i))
-    f = open('hx_txs.txt', 'w+')
-    for i in range(i, 420332):
+    # f = open('hx_txs.txt', 'w+')
+    for i in range(count, maxBlockNum):
         block = http_request('get_block', [i])
         if block is None:
             print("block %d is not fetched" % i)
@@ -190,17 +191,23 @@ def scan_block(count=1):
         if i % 1000 == 0:
             print("Block height: %d, miner: %s, tx_count: %d" % (block['number'], block['miner'], len(block['transactions'])))
             conn.commit()
-            f.flush()
+            # f.flush()
         c.execute("INSERT INTO "+block_table+" VALUES ("+str(block['number'])+",'"+block['miner']+"',"+str(len(block['transactions']))+")")
         if len(block['transactions']) > 0:
             tx_count = 0
             for t in block['transactions']:
-                f.write(str(t['operations'])+","+str(block['number'])+","+block['transaction_ids'][tx_count])
-                f.write('\n')
+                for op in t['operations']:
+                    if op[0] == 60:
+                        print(str(i)+',deposit,'+op[1]['cross_chain_trx']['asset_symbol']+','+str(op[1]['cross_chain_trx']['amount']))
+                    elif op[0] == 61:
+                        print(str(i)+',withdraw,'+op[1]['asset_symbol']+','+str(op[1]['amount']))
+                    else:
+                        # print('Not processed: '+str(op[0]))
+                        pass
+                # f.write(str(t['operations'])+","+str(block['number'])+","+block['transaction_ids'][tx_count])
+                # f.write('\n')
             count += 1
-    f.close()
-    c.execute('update '+config_table+' set value=\''+str(i)+'\' where key=\'scan_block_count\'')
-    c.close()
+    # f.close()
     conn.commit()
     conn.close()
 
@@ -220,6 +227,6 @@ def check_lockinfo(citizen):
             print(user['name']+": "+hx_amount+", "+hc_amount)
 
 if __name__ == '__main__':
-    scan_block(1)
+    scan_block(1785)
     #get_richlist()
     # check_lockinfo("1.2.738")
